@@ -13,6 +13,9 @@ import 'package:chewie/src/notifiers/index.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:flutter/services.dart';
+import 'package:volume_controller/volume_controller.dart';
 
 class MaterialControls extends StatefulWidget {
   const MaterialControls({
@@ -60,6 +63,10 @@ class _MaterialControlsState extends State<MaterialControls>
 
   @override
   Widget build(BuildContext context) {
+    double screenHeight = MediaQuery.of(context).size.height;
+    double targetHeight = screenHeight * 0.8;
+    double topMargin = screenHeight * 0.11;
+    double bottomMargin = screenHeight * 0.2;
     if (_latestValue.hasError) {
       return chewieController.errorBuilder?.call(
             context,
@@ -75,42 +82,62 @@ class _MaterialControlsState extends State<MaterialControls>
     }
 
     return MouseRegion(
-      onHover: (_) {
-        _cancelAndRestartTimer();
-      },
-      child: GestureDetector(
-        onTap: () => _cancelAndRestartTimer(),
-        child: AbsorbPointer(
-          absorbing: notifier.hideStuff,
-          child: Stack(
-            children: [
-              if (_displayBufferingIndicator)
-                const Center(
-                  child: CircularProgressIndicator(),
-                )
-              else
-                _buildHitArea(),
-              _buildActionBar(),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: <Widget>[
-                  if (_subtitleOn)
-                    Transform.translate(
-                      offset: Offset(
-                        0.0,
-                        notifier.hideStuff ? barHeight * 0.8 : 0.0,
-                      ),
-                      child:
-                          _buildSubtitles(context, chewieController.subtitle!),
-                    ),
-                  _buildBottomBar(context),
+        onHover: (_) {
+          _cancelAndRestartTimer();
+        },
+        child: Stack(children: [
+          GestureDetector(
+            onTap: () => _cancelAndRestartTimer(),
+            child: AbsorbPointer(
+              absorbing: notifier.hideStuff,
+              child: Stack(
+                children: [
+                  if (_displayBufferingIndicator)
+                    const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  else
+                    _buildHitArea(),
+                  _buildActionBar(),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      if (_subtitleOn)
+                        Transform.translate(
+                          offset: Offset(
+                            0.0,
+                            notifier.hideStuff ? barHeight * 0.8 : 0.0,
+                          ),
+                          child: _buildSubtitles(
+                              context, chewieController.subtitle!),
+                        ),
+                      _buildBottomBar(context),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
+          //Center(child: _buildVolumeChanger())
+
+          Container(
+              //color: Colors.blue,
+              margin: EdgeInsets.only(
+                top: topMargin,
+                bottom: bottomMargin,
+              ),
+              height: targetHeight,
+              child: Row(
+                children: [
+                  Expanded(flex: 3, child: _leftsidecode_demo()),
+                  Expanded(flex: 2, child: SizedBox.shrink()),
+                  Expanded(
+                    flex: 3,
+                    child: _rightsidecode_demo(),
+                  ),
+                ],
+              )),
+        ]));
   }
 
   @override
@@ -362,12 +389,140 @@ class _MaterialControlsState extends State<MaterialControls>
     );
   }
 
+  Widget _rightsidecode_demo() {
+    double _volume = controller.value.volume;
+    //double? mx_v = VolumeController().maxVolume();
+    //print("object  $mx_v!");
+    //double _volume = 0.0;
+
+    //VolumeController().getVolume().then((volume) => _volume = volume);
+
+    void _changeVolume(double delta) {
+      _volume += delta;
+      if (_volume < 0) {
+        _volume = 0;
+      } else if (_volume > 1) {
+        _volume = 1;
+      }
+      print(_volume);
+      controller.setVolume(_volume);
+      //VolumeController().setVolume(_volume);
+    }
+
+    return GestureDetector(
+      onDoubleTap: () {
+        Duration currentPosition = controller.value.position;
+        Duration newPosition = currentPosition + Duration(seconds: 10);
+        controller.seekTo(newPosition);
+      },
+      onVerticalDragUpdate: (details) {
+        _changeVolume(-details.delta.dy * 0.014);
+      },
+    );
+  }
+
+  Widget _leftsidecode_demo() {
+    Future<void> setBrightness(double brightness) async {
+      try {
+        await ScreenBrightness().setScreenBrightness(brightness);
+      } catch (e) {
+        print(e);
+        throw 'Failed to set brightness';
+      }
+    }
+
+    void _changeBrightness(double delta) async {
+      double currentBrightness = await ScreenBrightness().current;
+      double newBrightness = currentBrightness + delta;
+
+      if (newBrightness < 0) {
+        newBrightness = 0;
+      } else if (newBrightness > 1) {
+        newBrightness = 1;
+      }
+      print(newBrightness);
+      ScreenBrightness().setScreenBrightness(newBrightness);
+    }
+
+    return GestureDetector(
+      onDoubleTap: () {
+        Duration currentPosition = controller.value.position;
+        Duration newPosition = currentPosition - Duration(seconds: 10);
+        controller.seekTo(newPosition);
+      },
+      onVerticalDragUpdate: (details) {
+        _changeBrightness(-details.delta.dy * 0.014);
+      },
+    );
+  }
+
   Widget _buildHitArea() {
+    double _volume = controller.value.volume;
+    //double? mx_v = VolumeController().maxVolume();
+    //print("object  $mx_v!");
+    //double _volume = 0.0;
+
+    //VolumeController().getVolume().then((volume) => _volume = volume);
+
+    void _changeVolume(double delta) {
+      _volume += delta;
+      if (_volume < 0) {
+        _volume = 0;
+      } else if (_volume > 1) {
+        _volume = 1;
+      }
+      print(_volume);
+      controller.setVolume(_volume);
+      //VolumeController().setVolume(_volume);
+    }
+
+    //brightness
+    Future<void> setBrightness(double brightness) async {
+      try {
+        await ScreenBrightness().setScreenBrightness(brightness);
+      } catch (e) {
+        print(e);
+        throw 'Failed to set brightness';
+      }
+    }
+
+    void _changeBrightness(double delta) async {
+      double currentBrightness = await ScreenBrightness().current;
+      double newBrightness = currentBrightness + delta;
+
+      if (newBrightness < 0) {
+        newBrightness = 0;
+      } else if (newBrightness > 1) {
+        newBrightness = 1;
+      }
+      print(newBrightness);
+      ScreenBrightness().setScreenBrightness(newBrightness);
+    }
+
     final bool isFinished = _latestValue.position >= _latestValue.duration;
     final bool showPlayButton =
         widget.showPlayButton && !_dragging && !notifier.hideStuff;
 
     return GestureDetector(
+      // onDoubleTap: () {
+      //   Duration currentPosition = controller.value.position;
+      //   Duration newPosition = currentPosition + Duration(seconds: 10);
+      //   controller.seekTo(newPosition);
+      // },
+
+      // onVerticalDragUpdate: (details) {
+      //   _changeVolume(-details.delta.dy * 0.005);
+      // },
+
+      // onHorizontalDragUpdate: (details) {
+      //   _changeBrightness(details.delta.dx * 0.005);
+      // },
+
+      // //brightness
+      // onVerticalDragUpdate: (details) {
+      //   _changeVolume(-details.delta.dy * 0.014);
+      // },
+
       onTap: () {
         if (_latestValue.isPlaying) {
           if (_displayTapped) {
@@ -387,11 +542,11 @@ class _MaterialControlsState extends State<MaterialControls>
       },
       child: CenterPlayButton(
         backgroundColor: Colors.black54,
-        iconColor: Colors.red,
+        iconColor: Colors.white,
         isFinished: isFinished,
         isPlaying: controller.value.isPlaying,
         show: showPlayButton,
-        onPressed: null,
+        onPressed: _playPause,
       ),
     );
   }
